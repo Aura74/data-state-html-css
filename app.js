@@ -7,6 +7,7 @@ function delay(time) {
 }
 
 async function goAway() {
+  andraBakgrund();
   await delay(300);
   stoppVariabeln.setAttribute("data-state", "greyOne");
   gulVariabeln.setAttribute("data-state", "greyOne");
@@ -21,6 +22,7 @@ async function goAway() {
 }
 
 async function stopHere() {
+  andraBakgrundTillRed();
   await delay(300);
   stoppVariabeln.setAttribute("data-state", "greyOne");
   goVariabeln.setAttribute("data-state", "go");
@@ -40,6 +42,8 @@ async function stopHere() {
   gulVariabeln.setAttribute("data-state", "greyOne");
   stoppVariabeln.setAttribute("data-state", "stop");
   goVariabeln.setAttribute("data-state", "greyOne");
+
+  andraBakgrund();
 }
 
 // async function test() {
@@ -49,3 +53,22 @@ async function stopHere() {
 // }
 
 // test();
+
+const färger = [
+  "lightblue",
+  "lightgreen",
+  "lightcoral",
+  "lightgoldenrodyellow",
+  "red",
+  "lightpink",
+];
+let färgIndex = 0;
+
+function andraBakgrund() {
+  document.body.style.backgroundColor = färger[färgIndex];
+  färgIndex = (färgIndex + 1) % färger.length;
+}
+
+function andraBakgrundTillRed() {
+  document.body.style.backgroundColor = "red";
+}
