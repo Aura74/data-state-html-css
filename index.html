@@ -1,22 +1,141 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="sv" data-theme="dark">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="stylesheet" href="style.css" />
-    <title>Document</title>
+    <title>Trafikljus Simulator</title>
   </head>
   <body>
-    <div class="ladan">
-      <div id="stoppId" data-state="stop" class="div1"></div>
-      <div id="gulId" data-state="yellow" class="div1"></div>
-      <div id="goId" data-state="go" class="div1"></div>
+    <header>
+      <h1 class="site-title">Trafikljus Simulator</h1>
+      <button id="themeToggle" class="theme-toggle" aria-label="Byt tema">
+        <span class="theme-icon sun">&#9728;</span>
+        <span class="theme-icon moon">&#9790;</span>
+      </button>
+    </header>
 
-      <div class="buttonContainer">
-        <button onclick="goAway()" class="goButton">Åk</button>
-        <button onclick="stopHere()" class="stopButton">Stopp</button>
-      </div>
-    </div>
+    <main>
+      <section class="traffic-light-section">
+        <!-- Pole -->
+        <div class="pole"></div>
+
+        <!-- Traffic light housing -->
+        <div class="traffic-light" id="trafficLight">
+          <div class="light-unit" id="redUnit">
+            <div class="visor"></div>
+            <div class="light red" id="redLight" data-state="off">
+              <div class="reflection"></div>
+            </div>
+          </div>
+          <div class="light-unit" id="yellowUnit">
+            <div class="visor"></div>
+            <div class="light yellow" id="yellowLight" data-state="off">
+              <div class="reflection"></div>
+            </div>
+          </div>
+          <div class="light-unit" id="greenUnit">
+            <div class="visor"></div>
+            <div class="light green" id="greenLight" data-state="off">
+              <div class="reflection"></div>
+            </div>
+          </div>
+          <div class="arm"></div>
+        </div>
+
+        <!-- Countdown timer -->
+        <div class="countdown-display" id="countdown">
+          <span class="countdown-number" id="countdownNumber">--</span>
+          <span class="countdown-label">sekunder</span>
+        </div>
+
+        <!-- Pedestrian button -->
+        <div class="pedestrian-post">
+          <button class="pedestrian-button" id="pedestrianBtn" aria-label="Begär fotgängarövergång">
+            <svg viewBox="0 0 24 24" width="28" height="28" fill="currentColor">
+              <circle cx="12" cy="4" r="2"/>
+              <path d="M13.5 7h-3C9.67 7 9 7.67 9 8.5V13h2v7h2v-7h2V8.5C15 7.67 14.33 7 13.5 7z"/>
+            </svg>
+            <span>Tryck</span>
+          </button>
+          <div class="pedestrian-indicator" id="pedestrianIndicator"></div>
+        </div>
+      </section>
+
+      <section class="control-panel">
+        <h2>Kontrollpanel</h2>
+
+        <!-- Status display -->
+        <div class="status-bar">
+          <div class="status-dot" id="statusDot"></div>
+          <span class="status-text" id="statusText">Av</span>
+        </div>
+
+        <!-- Mode selector -->
+        <div class="control-group">
+          <label class="control-label">Läge</label>
+          <div class="mode-buttons">
+            <button class="mode-btn active" data-mode="manual" id="manualModeBtn">Manuell</button>
+            <button class="mode-btn" data-mode="auto" id="autoModeBtn">Auto</button>
+            <button class="mode-btn" data-mode="night" id="nightModeBtn">Natt</button>
+            <button class="mode-btn danger" data-mode="emergency" id="emergencyModeBtn">Nöd</button>
+          </div>
+        </div>
+
+        <!-- Manual controls -->
+        <div class="control-group" id="manualControls">
+          <label class="control-label">Manuell styrning</label>
+          <div class="manual-buttons">
+            <button class="light-btn red-btn" id="btnRed" onclick="setManualState('red')">
+              <span class="btn-dot"></span> Rött
+            </button>
+            <button class="light-btn yellow-btn" id="btnYellow" onclick="setManualState('yellow')">
+              <span class="btn-dot"></span> Gult
+            </button>
+            <button class="light-btn green-btn" id="btnGreen" onclick="setManualState('green')">
+              <span class="btn-dot"></span> Grönt
+            </button>
+          </div>
+          <div class="sequence-buttons">
+            <button class="seq-btn go-seq" onclick="goSequence()">Kör-sekvens</button>
+            <button class="seq-btn stop-seq" onclick="stopSequence()">Stopp-sekvens</button>
+          </div>
+        </div>
+
+        <!-- Speed control -->
+        <div class="control-group" id="speedControl">
+          <label class="control-label">Cykelhastighet</label>
+          <div class="speed-slider-container">
+            <span class="speed-label">Snabb</span>
+            <input type="range" id="speedSlider" class="speed-slider" min="1" max="10" value="5" />
+            <span class="speed-label">Långsam</span>
+          </div>
+          <div class="speed-value" id="speedValue">5s per fas</div>
+        </div>
+
+        <!-- Brightness control -->
+        <div class="control-group">
+          <label class="control-label">Ljusstyrka</label>
+          <div class="speed-slider-container">
+            <span class="speed-label">&#9788;</span>
+            <input type="range" id="brightnessSlider" class="speed-slider" min="30" max="100" value="100" />
+            <span class="speed-label">&#9728;</span>
+          </div>
+        </div>
+
+        <!-- Event log -->
+        <div class="control-group">
+          <label class="control-label">
+            Händelselogg
+            <button class="clear-log-btn" id="clearLogBtn" onclick="clearLog()">Rensa</button>
+          </label>
+          <div class="event-log" id="eventLog">
+            <div class="log-entry">System redo</div>
+          </div>
+        </div>
+      </section>
+    </main>
+
     <script src="app.js"></script>
   </body>
 </html>
