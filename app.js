@@ -34,30 +34,41 @@ let countdownInterval = null;
 let countdownValue = 0;
 let isSequenceRunning = false;
 let pedestrianRequested = false;
-let blinkInterval = null;
+let sequenceVersion = 0;
 
 // ========== Theme ==========
-const savedTheme = localStorage.getItem("theme") || "dark";
+let savedTheme = "dark";
+try { savedTheme = localStorage.getItem("theme") === "light" ? "light" : "dark"; } catch {}
 document.documentElement.setAttribute("data-theme", savedTheme);
+themeToggle.setAttribute("aria-label", savedTheme === "dark" ? "Byt till ljust tema" : "Byt till mörkt tema");
 
 themeToggle.addEventListener("click", () => {
   const current = document.documentElement.getAttribute("data-theme");
   const next = current === "dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme", next);
-  localStorage.setItem("theme", next);
+  try { localStorage.setItem("theme", next); } catch {}
+  themeToggle.setAttribute("aria-label", next === "dark" ? "Byt till ljust tema" : "Byt till mörkt tema");
   addLog(`Tema bytt till ${next === "dark" ? "mörkt" : "ljust"} läge`, "system");
 });
 
 // ========== Brightness ==========
 brightnessSlider.addEventListener("input", () => {
   const val = brightnessSlider.value / 100;
-  document.getElementById("trafficLight").style.filter = `brightness(${val})`;
+  [redLight, yellowLight, greenLight].forEach((light) => { light.style.filter = `brightness(${val})`; });
+  document.getElementById("brightnessValue").textContent = `${brightnessSlider.value} %`;
+  updateSliderTrack(brightnessSlider);
 });
+
+function updateSliderTrack(slider) {
+  const progress = ((slider.value - slider.min) / (slider.max - slider.min)) * 100;
+  slider.style.setProperty("--progress", `${progress}%`);
+}
 
 // ========== Speed Slider ==========
 speedSlider.addEventListener("input", () => {
   const val = speedSlider.value;
-  speedValue.textContent = `${val}s per fas`;
+  speedValue.textContent = `${val} s / fas`;
+  updateSliderTrack(speedSlider);
   // Restart auto cycle if running
   if (currentMode === "auto" && autoInterval) {
     stopAutoCycle();
@@ -70,6 +81,14 @@ function setLights(red, yellow, green) {
   redLight.setAttribute("data-state", red ? "on" : "off");
   yellowLight.setAttribute("data-state", yellow ? "on" : "off");
   greenLight.setAttribute("data-state", green ? "on" : "off");
+  const phase = red && yellow ? "red-yellow" : red ? "red" : yellow ? "yellow" : green ? "green" : "off";
+  document.getElementById("scene").dataset.signal = phase;
+  document.querySelectorAll(".phase").forEach((item) => {
+    const active = item.dataset.phase === phase;
+    item.classList.toggle("active", active);
+    if (active) item.setAttribute("aria-current", "step");
+    else item.removeAttribute("aria-current");
+  });
 
   // Remove blink class when setting explicitly
   redLight.classList.remove("blink");
@@ -80,6 +99,7 @@ function setLights(red, yellow, green) {
 function updateStatus(light, text) {
   statusDot.className = "status-dot " + light;
   statusText.textContent = text;
+  document.getElementById("trafficLight").setAttribute("aria-label", `Trafikljus: ${text}`);
   currentLight = light;
   updateManualButtons();
 }
@@ -88,6 +108,7 @@ function updateManualButtons() {
   btnRed.classList.toggle("active", currentLight === "red");
   btnYellow.classList.toggle("active", currentLight === "yellow");
   btnGreen.classList.toggle("active", currentLight === "green");
+  [btnRed, btnYellow, btnGreen].forEach((btn) => btn.setAttribute("aria-pressed", String(btn.classList.contains("active"))));
 }
 
 // ========== Manual Mode ==========
@@ -121,6 +142,7 @@ function delay(ms) {
 async function goSequence() {
   if (isSequenceRunning || currentMode !== "manual") return;
   isSequenceRunning = true;
+  const version = ++sequenceVersion;
   setSequenceButtonsDisabled(true);
   addLog("Kör-sekvens startad", "green");
 
@@ -128,19 +150,12 @@ async function goSequence() {
   setLights(true, true, false);
   updateStatus("yellow", "Rött + Gult");
   await delay(1500);
+  if (version !== sequenceVersion) return;
 
   // Green
   setLights(false, false, true);
   updateStatus("green", "Grönt ljus — Kör!");
   addLog("Grönt ljus — Kör!", "green");
-
-  // Blink green 3 times before ending
-  for (let i = 0; i < 3; i++) {
-    await delay(400);
-    greenLight.setAttribute("data-state", "off");
-    await delay(400);
-    greenLight.setAttribute("data-state", "on");
-  }
 
   isSequenceRunning = false;
   setSequenceButtonsDisabled(false);
@@ -150,6 +165,7 @@ async function goSequence() {
 async function stopSequence() {
   if (isSequenceRunning || currentMode !== "manual") return;
   isSequenceRunning = true;
+  const version = ++sequenceVersion;
   setSequenceButtonsDisabled(true);
   addLog("Stopp-sekvens startad", "red");
 
@@ -157,12 +173,14 @@ async function stopSequence() {
   setLights(false, false, true);
   updateStatus("green", "Grönt ljus");
   await delay(1000);
+  if (version !== sequenceVersion) return;
 
   // Yellow (warning)
   setLights(false, true, false);
   updateStatus("yellow", "Gult ljus — Sakta ner");
   addLog("Gult ljus — Sakta ner", "yellow");
   await delay(2000);
+  if (version !== sequenceVersion) return;
 
   // Red
   setLights(true, false, false);
@@ -236,8 +254,7 @@ function stopAutoCycle() {
 
 // ========== Night Mode (Blinking Yellow) ==========
 function startNightMode() {
-  setLights(false, false, false);
-  yellowLight.setAttribute("data-state", "on");
+  setLights(false, true, false);
   yellowLight.classList.add("blink");
   updateStatus("night", "Nattläge — Blinkande gult");
   addLog("Nattläge aktiverat", "yellow");
@@ -250,8 +267,7 @@ function stopNightMode() {
 
 // ========== Emergency Mode (Flashing Red) ==========
 function startEmergency() {
-  setLights(false, false, false);
-  redLight.setAttribute("data-state", "on");
+  setLights(true, false, false);
   redLight.classList.add("blink");
   updateStatus("emergency", "NÖDLÄGE — Blinkande rött");
   addLog("NÖDLÄGE aktiverat!", "red");
@@ -273,11 +289,22 @@ modeBtns.forEach((btn) => {
 
     // Switch
     currentMode = mode;
-    modeBtns.forEach((b) => b.classList.remove("active"));
+    modeBtns.forEach((b) => {
+      b.classList.remove("active");
+      b.setAttribute("aria-pressed", String(b === btn));
+    });
     btn.classList.add("active");
 
     // Update UI visibility
     manualControls.style.display = mode === "manual" ? "block" : "none";
+    const modeLabels = { manual: "Manuell styrning", auto: "Automatisk cykel", night: "Nattläge", emergency: "Nödläge" };
+    const modeHints = { manual: "Du styr signalerna. Välj ett ljus nedan.", auto: "Signalerna växlar automatiskt i en löpande cykel.", night: "Gult ljus blinkar kontinuerligt.", emergency: "Rött ljus blinkar kontinuerligt." };
+    const modeDescriptions = { auto: "Följ fasföljden under signalen. Justera faslängden för att ändra tempot i simuleringen.", night: "Simuleringen är i nattläge. Byt till Manuell eller Auto för att återgå till en vanlig signalcykel.", emergency: "Nödläget är aktivt. Välj ett annat driftläge för att avsluta den blinkande signalen." };
+    document.getElementById("sceneMode").textContent = modeLabels[mode];
+    document.getElementById("modeHint").textContent = modeHints[mode];
+    document.getElementById("modeDescription").hidden = mode === "manual";
+    document.getElementById("modeDescriptionText").textContent = modeDescriptions[mode] || "";
+    document.getElementById("countdownNote").textContent = mode === "auto" ? "Automatisk växling" : mode === "manual" ? "Styrs manuellt" : "Kontinuerlig signal";
 
     // Start new mode
     switch (mode) {
@@ -300,6 +327,9 @@ modeBtns.forEach((btn) => {
 });
 
 function stopCurrentMode() {
+  sequenceVersion++;
+  isSequenceRunning = false;
+  setSequenceButtonsDisabled(false);
   switch (currentMode) {
     case "auto":
       stopAutoCycle();
@@ -371,7 +401,13 @@ function addLog(message, type = "system") {
     second: "2-digit",
   });
 
-  entry.innerHTML = `<span class="log-time">${time}</span>${message}`;
+  const timestamp = document.createElement("span");
+  timestamp.className = "log-time";
+  timestamp.textContent = time;
+  const messageElement = document.createElement("span");
+  messageElement.className = "log-message";
+  messageElement.textContent = message;
+  entry.append(timestamp, messageElement);
   eventLog.appendChild(entry);
   eventLog.scrollTop = eventLog.scrollHeight;
 
@@ -379,6 +415,7 @@ function addLog(message, type = "system") {
   while (eventLog.children.length > 50) {
     eventLog.removeChild(eventLog.firstChild);
   }
+  document.getElementById("logCount").textContent = eventLog.children.length;
 }
 
 function clearLog() {
@@ -388,7 +425,7 @@ function clearLog() {
 
 // ========== Keyboard Shortcuts ==========
 document.addEventListener("keydown", (e) => {
-  if (currentMode !== "manual" || isSequenceRunning) return;
+  if (e.ctrlKey || e.metaKey || e.altKey || e.repeat || e.target.matches("input, textarea, select, [contenteditable]")) return;
 
   switch (e.key) {
     case "1":
@@ -419,6 +456,9 @@ document.addEventListener("keydown", (e) => {
 });
 
 // ========== Init ==========
-addLog("Trafikljus Simulator startad", "system");
-addLog("Tangenter: 1/R=Röd, 2/Y=Gul, 3/G=Grön, A=Auto, N=Natt, E=Nöd, P=Fotgängare", "system");
-updateStatus("", "Redo — Välj läge");
+addLog("Signal startad — system redo", "system");
+setLights(true, false, false);
+updateStatus("red", "Rött ljus — Stopp");
+addLog("Manuell styrning aktiverad", "system");
+updateSliderTrack(speedSlider);
+updateSliderTrack(brightnessSlider);
